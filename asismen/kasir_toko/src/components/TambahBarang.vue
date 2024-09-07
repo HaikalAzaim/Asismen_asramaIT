@@ -34,12 +34,6 @@
         <i class="bi bi-plus-circle"></i> Tambah
       </button>
     </form>
-    <div v-if="successMessage" class="alert alert-success mt-3">
-      {{ successMessage }}
-    </div>
-    <div v-if="errorMessage" class="alert alert-danger mt-3">
-      {{ errorMessage }}
-    </div>
   </div>
 </template>
 
@@ -47,6 +41,7 @@
 import { ref } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
+import Swal from 'sweetalert2';
 
 export default {
   name: 'TambahBarang',
@@ -55,17 +50,15 @@ export default {
     const nama_barang = ref('');
     const jumlah_barang = ref(0);
     const harga_barang = ref(0);
-    const errorMessage = ref('');
-    const successMessage = ref('');
     const router = useRouter();
 
     const validateInput = () => {
       if (jumlah_barang.value <= 0) {
-        errorMessage.value = 'Jumlah barang harus lebih dari 0';
+        Swal.fire('Error', 'Jumlah barang harus lebih dari 0', 'error');
         return false;
       }
       if (harga_barang.value <= 0) {
-        errorMessage.value = 'Harga barang harus lebih dari 0';
+        Swal.fire('Error', 'Harga barang harus lebih dari 0', 'error');
         return false;
       }
       return true;
@@ -79,7 +72,7 @@ export default {
         if (error.response.status === 404) {
           return false; // ID does not exist
         }
-        errorMessage.value = 'An error occurred while checking for duplicates';
+        Swal.fire('Error', 'An error occurred while checking for duplicates', 'error');
         return true;
       }
     };
@@ -88,7 +81,7 @@ export default {
       if (!validateInput()) return;
 
       if (await isDuplicate()) {
-        errorMessage.value = 'ID Barang sudah ada';
+        Swal.fire('Error', 'ID Barang sudah ada', 'error');
         return;
       }
 
@@ -101,15 +94,12 @@ export default {
         });
 
         if (response.status === 201) {
-          successMessage.value = 'Barang berhasil ditambahkan!';
-
-          // Redirect to Home after 1.5 seconds
-          setTimeout(() => {
+          Swal.fire('Sukses', 'Barang berhasil ditambahkan!', 'success').then(() => {
             router.push('/');
-          }, 1500);
+          });
         }
       } catch (error) {
-        errorMessage.value = error.response ? error.response.data.message : 'An error occurred';
+        Swal.fire('Error', error.response ? error.response.data.message : 'An error occurred', 'error');
       }
     };
 
@@ -118,8 +108,6 @@ export default {
       nama_barang,
       jumlah_barang,
       harga_barang,
-      errorMessage,
-      successMessage,
       addItem,
     };
   },

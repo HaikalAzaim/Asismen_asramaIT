@@ -3,7 +3,40 @@
     <div class="text-center mb-4">
       <h1 class="display-4">KALSTORE</h1>
     </div>
-    <div class="mb-3">
+
+    <!-- Form Edit Barang -->
+    <transition name="fade">
+      <div v-if="selectedItem" class="edit-form mt-4">
+        <h3>Edit Barang</h3>
+        <form @submit.prevent="updateItem">
+          <div class="mb-3">
+            <label for="edit_id_barang" class="form-label">ID Barang</label>
+            <input v-model="selectedItem.id_barang" type="text" class="form-control" id="edit_id_barang" required readonly>
+          </div>
+          <div class="mb-3">
+            <label for="edit_nama_barang" class="form-label">Nama Barang</label>
+            <input v-model="selectedItem.nama_barang" type="text" class="form-control" id="edit_nama_barang" required>
+          </div>
+          <div class="mb-3">
+            <label for="edit_jumlah_barang" class="form-label">Jumlah Barang</label>
+            <input v-model="selectedItem.jumlah_barang" type="number" class="form-control" id="edit_jumlah_barang" required>
+          </div>
+          <div class="mb-3">
+            <label for="edit_harga_barang" class="form-label">Harga Barang</label>
+            <input v-model="selectedItem.harga_barang" type="number" class="form-control" id="edit_harga_barang" required>
+          </div>
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="bi bi-save"></i> Simpan Perubahan
+          </button>
+          <button type="button" class="btn btn-secondary" @click="cancelEdit">
+            <i class="bi bi-x-circle"></i> Batal
+          </button>
+        </form>
+      </div>
+    </transition>
+
+    <!-- Input Pencarian -->
+    <div class="mb-3 mt-4">
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-search"></i></span>
         <input
@@ -14,6 +47,8 @@
         />
       </div>
     </div>
+
+    <!-- Tabel Barang -->
     <div class="row">
       <div class="col-md-12">
         <div class="card shadow-sm">
@@ -37,7 +72,7 @@
                     :key="item.id_barang"
                   >
                     <td>{{ (currentPage - 1) * itemsPerPage + index + 1 }}</td>
-                    <td><i class="bi bi-barcode"></i> {{ item.id_barang }}</td>
+                    <td>{{ item.id_barang }}</td>
                     <td>{{ item.nama_barang }}</td>
                     <td>{{ item.jumlah_barang }}</td>
                     <td>{{ currencyFormat(item.harga_barang) }}</td>
@@ -50,7 +85,7 @@
                       </button>
                       <button
                         class="btn btn-outline-danger rounded-pill shadow-sm"
-                        @click="deleteItem(item.id_barang)"
+                        @click="confirmDelete(item.id_barang)"
                       >
                         <i class="bi bi-trash"></i> Hapus
                       </button>
@@ -59,6 +94,7 @@
                 </tbody>
               </table>
             </div>
+            <!-- Pagination -->
             <div class="pagination mt-3">
               <button
                 class="btn btn-primary"
@@ -81,37 +117,25 @@
       </div>
     </div>
 
-    <div v-if="selectedItem" class="mt-4">
-      <h3>Edit Barang</h3>
-      <form @submit.prevent="updateItem">
-        <div class="mb-3">
-          <label for="edit_id_barang" class="form-label">ID Barang</label>
-          <input v-model="selectedItem.id_barang" type="text" class="form-control" id="edit_id_barang" required readonly>
-        </div>
-        <div class="mb-3">
-          <label for="edit_nama_barang" class="form-label">Nama Barang</label>
-          <input v-model="selectedItem.nama_barang" type="text" class="form-control" id="edit_nama_barang" required>
-        </div>
-        <div class="mb-3">
-          <label for="edit_jumlah_barang" class="form-label">Jumlah Barang</label>
-          <input v-model="selectedItem.jumlah_barang" type="number" class="form-control" id="edit_jumlah_barang" required>
-        </div>
-        <div class="mb-3">
-          <label for="edit_harga_barang" class="form-label">Harga Barang</label>
-          <input v-model="selectedItem.harga_barang" type="number" class="form-control" id="edit_harga_barang" required>
-        </div>
-        <button type="submit" class="btn btn-primary">
-          <i class="bi bi-save"></i> Simpan Perubahan
-        </button>
-      </form>
-    </div>
-
+    <!-- Pesan Error -->
     <div v-if="errorMessage" class="alert alert-danger mt-3">
       {{ errorMessage }}
     </div>
+
+    <!-- Toast Konfirmasi -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" v-if="showToast">
+        <div class="toast-header">
+          <strong class="me-auto">Notifikasi</strong>
+          <button type="button" class="btn-close" aria-label="Close" @click="showToast = false"></button>
+        </div>
+        <div class="toast-body">
+          {{ toastMessage }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
-
 
 <script>
 import { ref, computed } from 'vue';
@@ -124,10 +148,11 @@ export default {
     const errorMessage = ref('');
     const selectedItem = ref(null);
     const items = ref([]);
-    const itemsPerPage = 10; // Didefinisikan dengan benar
+    const itemsPerPage = 10;
     const currentPage = ref(1);
+    const showToast = ref(false);
+    const toastMessage = ref('');
 
-    // Fetch barang from API
     const fetchBarang = async () => {
       try {
         const response = await axios.get('http://localhost:3001/api/barang');
@@ -167,10 +192,18 @@ export default {
       }
     };
 
+    const confirmDelete = (id_barang) => {
+      if (confirm('Apakah Anda yakin ingin menghapus barang ini?')) {
+        deleteItem(id_barang);
+      }
+    };
+
     const deleteItem = async (id_barang) => {
       try {
         await axios.delete(`http://localhost:3001/api/barang/${id_barang}`);
         items.value = items.value.filter(item => item.id_barang !== id_barang);
+        toastMessage.value = "Barang berhasil dihapus!";
+        showToast.value = true;
       } catch (error) {
         errorMessage.value = error.response ? error.response.data.message : 'An error occurred';
       }
@@ -178,107 +211,88 @@ export default {
 
     const editItem = (item) => {
       selectedItem.value = { ...item };
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const cancelEdit = () => {
+      selectedItem.value = null;
     };
 
     const updateItem = async () => {
-      try {
-        const response = await axios.put(`http://localhost:3001/api/barang/${selectedItem.value.id_barang}`, selectedItem.value);
-        if (response.status === 200) {
-          const index = items.value.findIndex(item => item.id_barang === selectedItem.value.id_barang);
-          items.value[index] = { ...selectedItem.value };
-          selectedItem.value = null;
+      if (confirm('Apakah Anda yakin ingin menyimpan perubahan?')) {
+        try {
+          const response = await axios.put(`http://localhost:3001/api/barang/${selectedItem.value.id_barang}`, selectedItem.value);
+          if (response.status === 200) {
+            const index = items.value.findIndex(item => item.id_barang === selectedItem.value.id_barang);
+            if (index !== -1) {
+              items.value.splice(index, 1, selectedItem.value);
+            }
+            selectedItem.value = null;
+            toastMessage.value = "Barang berhasil diperbarui!";
+            showToast.value = true;
+          }
+        } catch (error) {
+          errorMessage.value = error.response ? error.response.data.message : 'An error occurred';
         }
-      } catch (error) {
-        errorMessage.value = error.response ? error.response.data.message : 'An error occurred';
       }
     };
 
-    const currencyFormat = (value) => {
-      if (value === null || value === undefined || isNaN(value)) {
-        return 'Rp 0';
-      }
-      return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR'
-      }).format(value);
+    const currencyFormat = (number) => {
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(number);
     };
 
     return {
       searchQuery,
+      errorMessage,
+      selectedItem,
       items,
+      itemsPerPage,
+      currentPage,
+      showToast,
+      toastMessage,
+      fetchBarang,
       filteredItems,
       paginatedItems,
       totalPages,
-      currentPage,
       previousPage,
       nextPage,
+      confirmDelete,
       deleteItem,
       editItem,
+      cancelEdit,
       updateItem,
-      selectedItem,
-      errorMessage,
       currencyFormat,
-      itemsPerPage, // Pastikan didefinisikan di sini
     };
-  },
+  }
 };
 </script>
 
 <style scoped>
-.container {
-  max-width: 960px;
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+  font-family: 'Roboto', sans-serif;
 }
 
-.text-center {
-  text-align: center;
+.table-hover tbody tr:hover {
+  background-color: #f0f0f0;
 }
 
-.display-4 {
-  font-size: 3rem;
-  font-weight: bold;
-  color: #007bff;
-}
-
-.table {
-  margin-top: 20px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.table thead {
-  background-color: #007bff;
-  color: white;
-}
-
-.table th, .table td {
-  vertical-align: middle;
-  padding: 15px;
+.table-bordered th, .table-bordered td {
   border: 1px solid #dee2e6;
 }
 
-.table tbody tr {
-  background-color: #f9f9f9;
+.table-primary th {
+  background-color: #007bff;
+  color: #fff;
 }
 
-.table tbody tr:nth-of-type(even) {
-  background-color: #e9ecef;
+.pagination button {
+  margin: 0 5px;
 }
 
-.table tbody tr:hover {
-  background-color: #d0e7ff;
-}
-
-.table td i {
-  margin-right: 5px;
-}
-
-.input-group-text {
-  background-color: #f1f1f1;
-  border-color: #ced4da;
-}
-
-.input-group .form-control-sm {
-  border-radius: 0.375rem;
+.form-control {
+  margin-bottom: 10px;
 }
 
 .card {
@@ -290,12 +304,13 @@ export default {
 }
 
 .card-title {
-  font-weight: bold;
+  font-weight: 700;
   color: #007bff;
 }
 
 .btn {
   font-size: 14px;
+  font-family: 'Roboto', sans-serif;
 }
 
 .btn i {
@@ -309,7 +324,7 @@ export default {
 
 .btn-outline-secondary:hover {
   background-color: #6c757d;
-  color: white;
+  color: #fff;
 }
 
 .btn-outline-danger {
@@ -319,43 +334,41 @@ export default {
 
 .btn-outline-danger:hover {
   background-color: #dc3545;
-  color: white;
+  color: #fff;
 }
 
-.alert {
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+.form-label {
+  font-weight: 700;
+  color: #333;
 }
 
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
-.pagination button {
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.edit-form {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.5s;
+}
+.fade-enter, .fade-leave-to {
+  opacity: 0;
+}
+
+.toast {
+  min-width: 300px;
   font-size: 14px;
-}
-
-.text-primary {
-  color: #007bff;
-}
-
-.text-success {
-  color: #28a745;
-}
-
-.text-warning {
-  color: #ffc107;
-}
-
-.table-primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.table-responsive {
-  max-height: 400px; /* Adjust height as needed */
-  overflow-y: auto;
 }
 </style>
